@@ -17,8 +17,9 @@ Gulp plugin for rewriting metadata of Bitwig Studio's files
 
 rewriting tag.
 ```coffeescript
+rewrite = require 'gulp-bitwig-rewrite-meta'
+
 gulp.task 'tagging', ->
-  rewrite = require './gulp-bitwig-rewrite-meta'
   gulp.src ["src/Like/**/*.bwpreset"], read: true
     .pipe rewrite
       tags: [
@@ -27,11 +28,12 @@ gulp.task 'tagging', ->
         ]
     .pipe gulp.dest "dist"
 ```
-adding tag and renaming.
 
+adding tag and renaming.
 ```coffeescript
+rewrite = require 'gulp-bitwig-rewrite-meta'
+
 gulp.task 'tagging', ->
-  rewrite = require './gulp-bitwig-rewrite-meta'
   gulp.src ["src/Like/**/*.bwpreset"], read: true
     .pipe rewrite (file, metadata) ->
       name: "#{metadata.name}_new"

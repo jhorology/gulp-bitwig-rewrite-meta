@@ -33,7 +33,7 @@ adding tag and renaming.
 gulp.task 'tagging', ->
   rewrite = require './gulp-bitwig-rewrite-meta'
   gulp.src ["src/Like/**/*.bwpreset"], read: true
-    .pipe rewrite, (file, metadata) ->
+    .pipe rewrite (file, metadata) ->
       name: "#{metadata.name}_new"
       tags: metadata.tags.concat [
         'Like'

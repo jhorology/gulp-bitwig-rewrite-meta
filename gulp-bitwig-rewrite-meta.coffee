@@ -218,7 +218,6 @@ rewriteMeta = (file, data) ->
   data = validateData data
 
   reader.position metadata_offset
-  isPreset = off
 
   new_metadata = replaceMetadata reader, writer, data
 
@@ -237,7 +236,7 @@ rewriteMeta = (file, data) ->
   if chunk2_offset
     reader.position chunk2_offset
     writer.push reader.mark()
-    # set chunk1 offset = metadata size + chunk1 size
+    # set chunk2 offset = metadata size + chunk1 size
     new_chunk2_offset = writer.tell()
     writer.writeHexInt new_chunk2_offset, 32
 
@@ -254,9 +253,9 @@ rewriteMeta = (file, data) ->
   file.contents = writer.buffer()
   file.data = new_metadata
 
-#----------------------------------------
-# parse metadata
-#----------------------------------------
+# parse metadata chunk
+# 
+# return JSON object to explain metadata of original source file.
 parseMetadata = (file, reader) ->
   extname = path.extname file.path
   ret =
@@ -293,9 +292,9 @@ parseMetadata = (file, reader) ->
   ret
 
 
-#----------------------------------------
-# reprace metadata
-#----------------------------------------
+# reprace metadata chunk
+#
+# return JSON object to explain metadata
 replaceMetadata = (reader, writer, data) ->
   new_metadata = {}
   # iterate metadata items
@@ -321,7 +320,7 @@ replaceMetadata = (reader, writer, data) ->
         else
           value = reader.readString()
           if key is 'tags'
-            valye = value.split ' '
+            value = if value then value.split ' ' else []
       when $.valueType.int16
         value = reader.readInt16()
       when $.valueType.double
@@ -338,9 +337,7 @@ replaceMetadata = (reader, writer, data) ->
     hasNext = reader.readInt32()
   new_metadata
 
-#----------------------------------------
-# reprace chunk1
-#----------------------------------------
+# reprace chunk1 (.bwpreset only)
 replacePresetChunk1 = (reader, writer, data) ->
   chunkId = reader.readInt32()
   # iterate chunk1 items
@@ -472,7 +469,6 @@ class BufferReader
   end: ->
     @buf.slice @marker
     
-
 #----------------------------------------
 # simple writer class
 #----------------------------------------

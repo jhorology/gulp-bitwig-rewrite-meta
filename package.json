@@ -9,6 +9,8 @@
   },
   "main": "gulp-bitwig-rewrite-meta.js",
   "scripts": {
+    "prepublish": "./node_modules/.bin/gulp",
+    "test": "./node_modules/.bin/gulp test"
   },
   "repository": {
     "type": "git",

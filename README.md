@@ -97,7 +97,7 @@ example metadata of .bwpreset
   "preset_category": "FX",
   "referenced_device_ids": [],
   "referenced_packaged_file_ids": [],
-  "revision_id": "volker@bitwig.com-20140715114044-v9t60rw9c97duf4w",
+  "revision_id": "20140715114044-v9t60rw9c97duf4w",
   "revision_no": 4430,
   "tags": [],
   "type": "application/bitwig-preset"

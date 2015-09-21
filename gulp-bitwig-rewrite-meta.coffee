@@ -254,7 +254,7 @@ rewriteMeta = (file, data) ->
   file.data = new_metadata
 
 # parse metadata chunk
-# 
+#
 # return JSON object to explain metadata of original source file.
 parseMetadata = (file, reader) ->
   extname = path.extname file.path

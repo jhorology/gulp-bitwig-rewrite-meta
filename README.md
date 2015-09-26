@@ -98,6 +98,7 @@ Type: `Object`
 
 ##### callback
 Type: `function(err, data)`
+
 function to support non-blocking data provider.
 
 example metadata of .bwpreset

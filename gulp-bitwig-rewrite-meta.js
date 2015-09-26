@@ -64,7 +64,7 @@
           }
           try {
             rewriteMeta(file, data);
-            _this.push(file, parseMetadata);
+            _this.push(file);
           } catch (error1) {
             error = error1;
             _this.emit('error', new gutil.PluginError(PLUGIN_NAME, err));

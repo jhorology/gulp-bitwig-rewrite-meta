@@ -179,7 +179,7 @@ module.exports = (data) ->
         return cb()
       try
         rewriteMeta file, data
-        @push file, parseMetadata
+        @push file
       catch error
         @emit 'error', new gutil.PluginError PLUGIN_NAME, err
       cb()

@@ -2,7 +2,6 @@ gulp        = require 'gulp'
 coffeelint  = require 'gulp-coffeelint'
 coffee      = require 'gulp-coffee'
 mocha       = require 'gulp-mocha'
-runSequence = require 'run-sequence'
 del         = require 'del'
 watch       = require 'gulp-watch'
 mocha       = require 'gulp-mocha'
@@ -20,16 +19,12 @@ gulp.task 'coffeelint', ->
     .pipe coffeelint './coffeelint.json'
     .pipe coffeelint.reporter()
 
-gulp.task 'coffee', ->
+gulp.task 'coffee', ['coffeelint'], ->
   gulp.src ['./gulp-bitwig-rewrite-meta.coffee']
     .pipe coffee()
     .pipe gulp.dest './'
 
-gulp.task 'default', (cb) -> runSequence.apply null, [
-  'coffeelint'
-  'coffee'
-  cb
-]
+gulp.task 'default', ['coffee']
 
 gulp.task 'watch', ->
   gulp.watch './**/*.coffee', ['default']
@@ -140,7 +135,6 @@ gulp.task 'test_6', ['default'], ->
         ]
       comment: '説明_テスト_6_1\n説明_テスト_6_2'
     .pipe gulp.dest "#{$.testOutDir}/test_6"
-
 
 # test all
 gulp.task 'test', [

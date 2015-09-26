@@ -44,6 +44,18 @@ gulp.task 'tagging', ->
     .pipe gulp.dest "dist"
 ```
 
+non-blocking data provider.
+```coffeescript
+rewrite = require 'gulp-bitwig-rewrite-meta'
+
+gulp.task 'rewrite_meta', ->
+  gulp.src ["src/**/*.bwpreset"], read: true
+    .pipe rewrite (file, metadata, done) ->
+      nonblockingfunction metadata, (err, data) ->
+        done err, data
+    .pipe gulp.dest $.distDir
+```
+
 ## API
 
 ### rewrite(data)
@@ -70,17 +82,23 @@ Type: `Array` of `String`
 ##### data.comment [optional]
 Type: `String`
 
-#### function (file, metadata)
+#### function (file, metadata [,callbak])
+functoin to provide data.
 
 ##### file
-Type: `Object'
-
-The `vinyl` file.
+Type: instance of `vinyl` file
 
 ##### metadata
 Type: `Object`
 
 The metadata of source file.
+
+##### metadata
+Type: `Object`
+
+##### callback
+Type: `function(err, data)`
+function to support non-blocking data provider.
 
 example metadata of .bwpreset
 ```javascript

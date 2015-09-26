@@ -168,26 +168,40 @@ $ =
 
 module.exports = (data) ->
   through.obj (file, enc, cb) ->
-    unless file
-      @emit 'error', new gutil.PluginError PLUGIN_NAME, 'Files can not be empty'
+    rewrited = off
+    rewrite = (err, data) =>
+      if rewrited
+        @emit 'error', new gutil.PluginError PLUGIN_NAME, 'duplicate callback'
+        return
+      rewrited = on
+      if err
+        @emit 'error', new gutil.PluginError PLUGIN_NAME, err
+        return cb()
+      try
+        rewriteMeta file, data
+        @push file, parseMetadata
+      catch error
+        @emit 'error', new gutil.PluginError PLUGIN_NAME, err
+      cb()
       
+    rewrite 'Files can not be empty' unless file
+    
     if file.isNull()
       @push file
       return cb()
 
-    if file.isStream()
-      @emit 'error', new gutil.PluginError PLUGIN_NAME, 'Streaming not supported'
-      return cb()
+    rewrite 'Streaming not supported' if file.isStream()
 
     if file.isBuffer()
-      try
-        rewriteMeta file, data
-        @push file
-      catch error
-        @emit 'error', new gutil.PluginError PLUGIN_NAME, error
-    cb()
-
-
+      if _.isFunction data
+        try
+          obj = data file, (parseMetadata file), rewrite
+        catch error
+          rewrite error
+        if data.length <= 2
+          rewrite undefined, obj
+      else
+        rewrite undefined, data
 #
 # rewrite metadata
 # -------------------------------------
@@ -196,8 +210,10 @@ module.exports = (data) ->
 rewriteMeta = (file, data) ->
   reader = new BufferReader file.contents
   writer = new BufferWriter
-  magic = reader.readString 4
-  if magic isnt $.magic
+  data = validateData data
+
+  # header chunk 48byte
+  if (magic = reader.readString 4) isnt $.magic
     throw new Error "Invalid file: unknown file magic:#{magic}"
 
   # chunk1 offset = metadata size
@@ -207,20 +223,15 @@ rewriteMeta = (file, data) ->
   # chunk2 offset
   reader.position 32
   chunk2_offset = reader.readHexInt()
+    
+  # metadata chunk (chuk1 offset - 48) byte
   reader.position 48
   if reader.readString(4) isnt $.metaId
     throw new Error "Invalid file: metadata not contained."
     
-  metadata_offset = reader.tell()
-  if _.isFunction data
-    data = data file, parseMetadata file, reader
-
-  data = validateData data
-
-  reader.position metadata_offset
-
   new_metadata = replaceMetadata reader, writer, data
 
+  #  chunk1
   reader.position chunk1_offset
   writer.push reader.mark()
 
@@ -256,14 +267,20 @@ rewriteMeta = (file, data) ->
 # parse metadata chunk
 #
 # return JSON object to explain metadata of original source file.
-parseMetadata = (file, reader) ->
+parseMetadata = (file) ->
+  reader = new BufferReader file.contents
+  if reader.readString(4) isnt $.magic
+    throw new Error "Invalid file: unknown file magic:#{magic}"
+
+  reader.position 48
+  if reader.readString(4) isnt $.metaId
+    throw new Error "Invalid file: metadata not contained."
   extname = path.extname file.path
   ret =
     file: file.path
     name: path.basename file.path, extname
   # iterate metadata items
-  hasNext = reader.readInt32()
-  while hasNext is 1
+  while reader.readInt32() is 1
     # read key kength
     key = reader.readString()
     unless key
@@ -275,12 +292,9 @@ parseMetadata = (file, reader) ->
         value = reader.readString()
         if key is 'tags'
           value = if value then value.split ' ' else []
-      when $.valueType.int16
-        value = reader.readInt16()
-      when $.valueType.double
-        value = reader.readDouble()
-      when $.valueType.byte_array
-        value = reader.readBytes()
+      when $.valueType.int16 then value = reader.readInt16()
+      when $.valueType.double then value = reader.readDouble()
+      when $.valueType.byte_array then value = reader.readBytes()
       when $.valueType.string_array
         size = reader.readInt32()
         value = for i in [0...size]
@@ -288,7 +302,6 @@ parseMetadata = (file, reader) ->
       else
         throw new Error "Unsupported file format: unknown value type. key: #{key} valueType:#{valueType}"
     ret[key] = value
-    hasNext = reader.readInt32()
   ret
 
 
@@ -298,8 +311,7 @@ parseMetadata = (file, reader) ->
 replaceMetadata = (reader, writer, data) ->
   new_metadata = {}
   # iterate metadata items
-  hasNext = reader.readInt32()
-  while hasNext is 1
+  while reader.readInt32() is 1
     # read key kength
     key = reader.readString()
     unless key
@@ -308,7 +320,7 @@ replaceMetadata = (reader, writer, data) ->
     value = undefined
     switch valueType
       when $.valueType.string
-        if key in _.keys data
+        if (key in _.keys $.metaItem) and (key in _.keys data)
           writer.push reader.mark()
           value = data[key]
           if key is 'tags'
@@ -321,12 +333,9 @@ replaceMetadata = (reader, writer, data) ->
           value = reader.readString()
           if key is 'tags'
             value = if value then value.split ' ' else []
-      when $.valueType.int16
-        value = reader.readInt16()
-      when $.valueType.double
-        value = reader.readDouble()
-      when $.valueType.byte_array
-        value = reader.readBytes()
+      when $.valueType.int16 then value = reader.readInt16()
+      when $.valueType.double then value = reader.readDouble()
+      when $.valueType.byte_array then value = reader.readBytes()
       when $.valueType.string_array
         size = reader.readInt32()
         value = for i in [0...size]
@@ -334,15 +343,13 @@ replaceMetadata = (reader, writer, data) ->
       else
         throw new Error "Unsupported file format: unknown value type. key: #{key} valueType:#{valueType}"
     new_metadata[key] = value
-    hasNext = reader.readInt32()
   new_metadata
 
 # reprace chunk1 (.bwpreset only)
 replacePresetChunk1 = (reader, writer, data) ->
   chunkId = reader.readInt32()
   # iterate chunk1 items
-  itemId = reader.readInt32()
-  while itemId isnt $.endOfMeta
+  while (itemId = reader.readInt32()) isnt $.endOfMeta
     value = undefined
     valueType = reader.readByte()
     key = _.findKey $.metaItem, (v, k, o) -> v is itemId
@@ -364,7 +371,6 @@ replacePresetChunk1 = (reader, writer, data) ->
         when $.valueType.int32 then value = reader.readInt32()
         else
           throw new Error "Unsupported File Format: unknown value type. itemId:#{itemId} valueType:#{valueType}"
-    itemId = reader.readInt32()
   
 #----------------------------------------
 # validate data object for rewrite

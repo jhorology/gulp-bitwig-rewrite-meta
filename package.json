@@ -1,6 +1,6 @@
 {
   "name": "gulp-bitwig-rewrite-meta",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "rewrite metadata of Bitwig Studio's document file",
   "author": {
     "name": "jhorology",
@@ -36,7 +36,6 @@
     "gulp-mocha": "^2.1.3",
     "gulp-watch": "^4.3.5",
     "js-beautify": "^1.5.10",
-    "mocha": "^2.3.0",
-    "run-sequence": "^1.1.2"
+    "mocha": "^2.3.0"
   }
 }

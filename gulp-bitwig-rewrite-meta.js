@@ -24,10 +24,11 @@
     valueType: {
       byte_1: 0x01,
       int16: 0x02,
+      int32_1: 0x03,
       byte_2: 0x05,
       double: 0x07,
       string: 0x08,
-      int32: 0x09,
+      int32_2: 0x09,
       byte_array: 0x0d,
       string_array: 0x19
     },
@@ -74,6 +75,7 @@
       })(this);
       if (!file) {
         rewrite('Files can not be empty');
+        return;
       }
       if (file.isNull()) {
         this.push(file);
@@ -81,6 +83,7 @@
       }
       if (file.isStream()) {
         rewrite('Streaming not supported');
+        return;
       }
       if (file.isBuffer()) {
         if (_.isFunction(data)) {
@@ -175,6 +178,9 @@
         case $.valueType.int16:
           value = reader.readInt16();
           break;
+        case $.valueType.int32_1:
+          value = reader.readInt32();
+          break;
         case $.valueType.double:
           value = reader.readDouble();
           break;
@@ -193,7 +199,7 @@
           })();
           break;
         default:
-          throw new Error("Unsupported file format: unknown value type. key: " + key + " valueType:" + valueType);
+          throw new Error("Unsupported file format: unknown value type. key: " + key + " valueType:" + valueType + " " + file.path);
       }
       ret[key] = value;
     }
@@ -231,6 +237,9 @@
           break;
         case $.valueType.int16:
           value = reader.readInt16();
+          break;
+        case $.valueType.int32_1:
+          value = reader.readInt32();
           break;
         case $.valueType.double:
           value = reader.readDouble();
@@ -290,7 +299,7 @@
           case $.valueType.string:
             results.push(value = reader.readString());
             break;
-          case $.valueType.int32:
+          case $.valueType.int32_2:
             results.push(value = reader.readInt32());
             break;
           default:

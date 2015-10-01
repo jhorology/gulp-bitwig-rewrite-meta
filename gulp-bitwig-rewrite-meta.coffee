@@ -148,10 +148,11 @@ $ =
   valueType:
     byte_1: 0x01
     int16: 0x02
+    int32_1: 0x03   # since 1.2 some preset file's revision_no use 32bit int
     byte_2: 0x05
     double: 0x07
     string: 0x08
-    int32: 0x09
+    int32_2: 0x09
     byte_array: 0x0d
     string_array: 0x19
   protectedMetaItem:
@@ -184,13 +185,17 @@ module.exports = (data) ->
         @emit 'error', new gutil.PluginError PLUGIN_NAME, err
       cb()
       
-    rewrite 'Files can not be empty' unless file
+    unless file
+      rewrite 'Files can not be empty'
+      return
     
     if file.isNull()
       @push file
       return cb()
 
-    rewrite 'Streaming not supported' if file.isStream()
+    if file.isStream()
+      rewrite 'Streaming not supported'
+      return
 
     if file.isBuffer()
       if _.isFunction data
@@ -293,6 +298,7 @@ parseMetadata = (file) ->
         if key is 'tags'
           value = if value then value.split ' ' else []
       when $.valueType.int16 then value = reader.readInt16()
+      when $.valueType.int32_1 then value = reader.readInt32()
       when $.valueType.double then value = reader.readDouble()
       when $.valueType.byte_array then value = reader.readBytes()
       when $.valueType.string_array
@@ -300,7 +306,7 @@ parseMetadata = (file) ->
         value = for i in [0...size]
           reader.readString()
       else
-        throw new Error "Unsupported file format: unknown value type. key: #{key} valueType:#{valueType}"
+        throw new Error "Unsupported file format: unknown value type. key: #{key} valueType:#{valueType} #{file.path}"
     ret[key] = value
   ret
 
@@ -334,6 +340,7 @@ replaceMetadata = (reader, writer, data) ->
           if key is 'tags'
             value = if value then value.split ' ' else []
       when $.valueType.int16 then value = reader.readInt16()
+      when $.valueType.int32_1 then value = reader.readInt32()
       when $.valueType.double then value = reader.readDouble()
       when $.valueType.byte_array then value = reader.readBytes()
       when $.valueType.string_array
@@ -368,7 +375,7 @@ replacePresetChunk1 = (reader, writer, data) ->
         when $.valueType.byte_1 then value = reader.readByte()
         when $.valueType.byte_2 then value = reader.readByte()
         when $.valueType.string then value = reader.readString()
-        when $.valueType.int32 then value = reader.readInt32()
+        when $.valueType.int32_2 then value = reader.readInt32()
         else
           throw new Error "Unsupported File Format: unknown value type. itemId:#{itemId} valueType:#{valueType}"
   

@@ -93,13 +93,10 @@ Type: `Object`
 
 The metadata of source file.
 
-##### metadata
-Type: `Object`
-
 ##### callback
 Type: `function(err, data)`
 
-function to support non-blocking data provider.
+callback function to support non-blocking data provider.
 
 example metadata of .bwpreset
 ```javascript

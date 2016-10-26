@@ -49,11 +49,11 @@
 
   module.exports = function(data) {
     return through.obj(function(file, enc, cb) {
-      var error, error1, obj, rewrite, rewrited;
+      var error, obj, rewrite, rewrited;
       rewrited = false;
       rewrite = (function(_this) {
         return function(err, data) {
-          var error, error1;
+          var err2;
           if (rewrited) {
             _this.emit('error', new gutil.PluginError(PLUGIN_NAME, 'duplicate callback'));
             return;
@@ -67,8 +67,8 @@
             rewriteMeta(file, data);
             _this.push(file);
           } catch (error1) {
-            error = error1;
-            _this.emit('error', new gutil.PluginError(PLUGIN_NAME, err));
+            err2 = error1;
+            _this.emit('error', new gutil.PluginError(PLUGIN_NAME, err2));
           }
           return cb();
         };
@@ -311,29 +311,33 @@
   };
 
   validateData = function(data) {
-    var j, len1, ref, tag;
+    var j, keys, len1, ref, tag;
     data = data || {};
-    if (data.name && !_.isString(data.name)) {
-      throw new Error('option name must be string');
+    keys = _.keys(data);
+    if ((indexOf.call(keys, 'name') >= 0) && !_.isString(data.name)) {
+      throw new Error("option name must be string. name: " + data.name);
     }
-    if (data.creator && !_.isString(data.creator)) {
-      throw new Error('option creator must be string');
+    if ((indexOf.call(keys, 'creator') >= 0) && !_.isString(data.creator)) {
+      throw new Error("option creator must be string. creator: " + data.creator);
     }
-    if (data.comment && !_.isString(data.comment)) {
-      throw new Error('option comment must be string');
+    if ((indexOf.call(keys, 'comment') >= 0) && !_.isString(data.comment)) {
+      throw new Error("option comment must be string. comment: " + data.comment);
     }
-    if (data.preset_category && !_.isString(data.preset_category)) {
-      throw new Error('option preset_category must be string');
+    if ((indexOf.call(keys, 'preset_category') >= 0) && !_.isString(data.preset_category)) {
+      throw new Error("option preset_category must be string. preset_category: " + data.preset_category);
     }
-    if (data.tags) {
+    if (indexOf.call(keys, 'tags') >= 0) {
       if (!_.isArray(data.tags)) {
-        throw new Error('option tags must be array of strings');
+        throw new Error("option tags must be array of strings. tags: " + data.tags);
       }
       ref = data.tags;
       for (j = 0, len1 = ref.length; j < len1; j++) {
         tag = ref[j];
         if (!_.isString(tag)) {
-          throw new Error('option tags must be array of strings');
+          throw new Error("option tags must be array of strings. tags: " + data.tags);
+        }
+        if ((tag.indexOf(' ')) >= 0) {
+          throw new Error("tag can't contain spaces. tags: " + tag);
         }
       }
     }

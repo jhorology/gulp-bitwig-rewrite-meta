@@ -181,8 +181,8 @@ module.exports = (data) ->
       try
         rewriteMeta file, data
         @push file
-      catch error
-        @emit 'error', new gutil.PluginError PLUGIN_NAME, err
+      catch err2
+        @emit 'error', new gutil.PluginError PLUGIN_NAME, err2
       cb()
       
     unless file
@@ -384,24 +384,27 @@ replacePresetChunk1 = (reader, writer, data) ->
 #----------------------------------------
 validateData = (data) ->
   data = data or {}
-  if data.name and not _.isString data.name
-    throw new Error 'option name must be string'
+  keys = _.keys data
+  if ('name' in keys) and not _.isString data.name
+    throw new Error "option name must be string. name: #{data.name}"
     
-  if data.creator and not _.isString data.creator
-    throw new Error 'option creator must be string'
+  if ('creator' in keys) and not _.isString data.creator
+    throw new Error "option creator must be string. creator: #{data.creator}"
       
-  if data.comment and not _.isString data.comment
-    throw new Error 'option comment must be string'
+  if ('comment' in keys) and not _.isString data.comment
+    throw new Error "option comment must be string. comment: #{data.comment}"
       
-  if data.preset_category and not _.isString data.preset_category
-    throw new Error 'option preset_category must be string'
+  if ('preset_category' in keys) and not _.isString data.preset_category
+    throw new Error "option preset_category must be string. preset_category: #{data.preset_category}"
     
-  if data.tags
+  if 'tags' in keys
     unless _.isArray data.tags
-      throw new Error 'option tags must be array of strings'
+      throw new Error "option tags must be array of strings. tags: #{data.tags}"
     for tag in data.tags
       unless _.isString tag
-        throw new Error 'option tags must be array of strings'
+        throw new Error "option tags must be array of strings. tags: #{data.tags}"
+      if (tag.indexOf ' ') >= 0
+        throw new Error "tag can't contain spaces. tags: #{tag}"
   data
 
 #----------------------------------------

@@ -109,7 +109,7 @@
     writer = new BufferWriter;
     data = validateData(data);
     if ((magic = reader.readString(4)) !== $.magic) {
-      throw new Error("Invalid file: unknown file magic:" + magic);
+      throw new Error("Invalid file: unknown file magic. file:" + file.path + " magic:" + magic);
     }
     reader.position(16);
     chunk1_offset = reader.readHexInt();
@@ -117,7 +117,7 @@
     chunk2_offset = reader.readHexInt();
     reader.position(48);
     if (reader.readString(4) !== $.metaId) {
-      throw new Error("Invalid file: metadata not contained.");
+      throw new Error("Invalid file: metadata not contained. file:" + file.path);
     }
     new_metadata = replaceMetadata(reader, writer, data);
     reader.position(chunk1_offset);
@@ -147,14 +147,14 @@
   };
 
   parseMetadata = function(file) {
-    var extname, i, key, reader, ret, size, value, valueType;
+    var extname, i, key, magic, reader, ret, size, value, valueType;
     reader = new BufferReader(file.contents);
-    if (reader.readString(4) !== $.magic) {
-      throw new Error("Invalid file: unknown file magic:" + magic);
+    if ((magic = reader.readString(4)) !== $.magic) {
+      throw new Error("Invalid file: unknown file magic. file:" + file.path + " magic:" + magic);
     }
     reader.position(48);
     if (reader.readString(4) !== $.metaId) {
-      throw new Error("Invalid file: metadata not contained.");
+      throw new Error("Invalid file: metadata not contained. file:" + file.path);
     }
     extname = path.extname(file.path);
     ret = {
@@ -164,7 +164,7 @@
     while (reader.readInt32() === 1) {
       key = reader.readString();
       if (!key) {
-        throw new Error("Invalid file: metadata item name can not be empty.");
+        throw new Error("Invalid file: metadata item name can not be empty. file:" + file.path);
       }
       valueType = reader.readByte();
       value = void 0;
@@ -199,7 +199,7 @@
           })();
           break;
         default:
-          throw new Error("Unsupported file format: unknown value type. key: " + key + " valueType:" + valueType + " " + file.path);
+          throw new Error("Unsupported file format: unknown value type. file:" + file.path + " key:" + key + " valueType:" + valueType);
       }
       ret[key] = value;
     }

@@ -219,7 +219,7 @@ rewriteMeta = (file, data) ->
 
   # header chunk 48byte
   if (magic = reader.readString 4) isnt $.magic
-    throw new Error "Invalid file: unknown file magic:#{magic}"
+    throw new Error "Invalid file: unknown file magic. file:#{file.path} magic:#{magic}"
 
   # chunk1 offset = metadata size
   reader.position 16
@@ -232,7 +232,7 @@ rewriteMeta = (file, data) ->
   # metadata chunk (chuk1 offset - 48) byte
   reader.position 48
   if reader.readString(4) isnt $.metaId
-    throw new Error "Invalid file: metadata not contained."
+    throw new Error "Invalid file: metadata not contained. file:#{file.path}"
     
   new_metadata = replaceMetadata reader, writer, data
 
@@ -274,12 +274,12 @@ rewriteMeta = (file, data) ->
 # return JSON object to explain metadata of original source file.
 parseMetadata = (file) ->
   reader = new BufferReader file.contents
-  if reader.readString(4) isnt $.magic
-    throw new Error "Invalid file: unknown file magic:#{magic}"
+  if (magic = reader.readString(4)) isnt $.magic
+    throw new Error "Invalid file: unknown file magic. file:#{file.path} magic:#{magic}"
 
   reader.position 48
   if reader.readString(4) isnt $.metaId
-    throw new Error "Invalid file: metadata not contained."
+    throw new Error "Invalid file: metadata not contained. file:#{file.path}"
   extname = path.extname file.path
   ret =
     file: file.path
@@ -289,7 +289,7 @@ parseMetadata = (file) ->
     # read key kength
     key = reader.readString()
     unless key
-      throw new Error "Invalid file: metadata item name can not be empty."
+      throw new Error "Invalid file: metadata item name can not be empty. file:#{file.path}"
     valueType = reader.readByte()
     value = undefined
     switch valueType
@@ -306,7 +306,7 @@ parseMetadata = (file) ->
         value = for i in [0...size]
           reader.readString()
       else
-        throw new Error "Unsupported file format: unknown value type. key: #{key} valueType:#{valueType} #{file.path}"
+        throw new Error "Unsupported file format: unknown value type. file:#{file.path} key:#{key} valueType:#{valueType}"
     ret[key] = value
   ret
 

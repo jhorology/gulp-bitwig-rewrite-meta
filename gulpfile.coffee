@@ -1,5 +1,4 @@
 gulp        = require 'gulp'
-coffeelint  = require 'gulp-coffeelint'
 coffee      = require 'gulp-coffee'
 tap         = require 'gulp-tap'
 del         = require 'del'
@@ -13,12 +12,7 @@ $ =
   testDataDir: "./test_data"
   testOutDir: "./test_out"
   
-gulp.task 'coffeelint', ->
-  gulp.src ['./*.coffee', './test/*.coffee']
-    .pipe coffeelint './coffeelint.json'
-    .pipe coffeelint.reporter()
-
-gulp.task 'coffee', gulp.series 'coffeelint', ->
+gulp.task 'coffee', ->
   gulp.src ['./gulp-bitwig-rewrite-meta.coffee']
     .pipe coffee()
     .pipe gulp.dest './'

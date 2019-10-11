@@ -1,6 +1,6 @@
 {
   "name": "gulp-bitwig-rewrite-meta",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "rewrite metadata of Bitwig Studio's document file",
   "author": {
     "name": "jhorology",
@@ -10,8 +10,9 @@
   "main": "gulp-bitwig-rewrite-meta.js",
   "scripts": {
     "test": "gulp test",
-    "prepublish": "gulp",
-    "lint": "gulp coffeelint"
+    "prepublishOnly": "gulp",
+    "clean": "gulp clean",
+    "lint": "coffeelint -f coffeelint.json *.coffee"
   },
   "repository": {
     "type": "git",
@@ -24,17 +25,16 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "gulp-util": "^3.0.8",
     "plugin-error": "^1.0.1",
     "through2": "^3.0.1",
     "underscore": "^1.9.1"
   },
   "devDependencies": {
+    "coffeelint": "^2.1.0",
     "coffeescript": "^2.4.1",
     "del": "^5.1.0",
     "gulp": "^4.0.2",
     "gulp-coffee": "^3.0.3",
-    "gulp-coffeelint": "^0.6.0",
     "gulp-tap": "^2.0.0",
     "js-beautify": "^1.10.2"
   }

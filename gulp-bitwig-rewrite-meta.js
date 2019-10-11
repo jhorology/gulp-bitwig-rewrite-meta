@@ -1,19 +1,152 @@
 (function() {
-  var $, BufferReader, BufferWriter, IS_UCS2_LE, PLUGIN_NAME, _, gutil, parseMetadata, path, replaceMetadata, replacePresetChunk1, rewriteMeta, swapBytes, through, validateData,
-    indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+  var $, BufferReader, BufferWriter, IS_UCS2_LE, PLUGIN_NAME, PluginError, _, parseMetadata, path, replaceMetadata, replacePresetChunk1, rewriteMeta, swapBytes, through, validateData,
+    indexOf = [].indexOf;
 
   path = require('path');
 
   through = require('through2');
 
-  gutil = require('gulp-util');
-
   _ = require('underscore');
+
+  PluginError = require('plugin-error');
 
   PLUGIN_NAME = 'bitwig-rewrite-meta';
 
-  IS_UCS2_LE = (new Buffer('a', 'ucs2'))[0];
+  // ucs2 encoding endian
+  IS_UCS2_LE = (Buffer.from('a', 'ucs2'))[0];
 
+  // bwpreset chunk1
+  // ----------------------------------------------
+  // Polysynth Acido.bwpreset (1.1 BETA 1)
+
+  //  chunk identifier: 00000561
+  //  ---------------------------------
+  //  item identifier:  00001423 (unknown)
+  //  value type:       05 (byte)
+  //  value:            00
+  //  ---------------------------------
+  //  item identifier:  0000150a (unknown)
+  //  value type:       05 (byte)
+  //  value:            00
+  //  ---------------------------------
+  //  item identifier:  00001421 (unknown)
+  //  value type:       09 (32bit)
+  //  value:            00000040
+  //  ---------------------------------
+  //  item identifier:  000002b9 (unknown)
+  //  value type:       08 (string)
+  //  string size:      00000000
+  //  ---------------------------------
+  //  item identifier   000012de (preset_name)
+  //  value type:       08 (string)
+  //  string size:      00000005
+  //  value:            416369646f ("Acido")
+  //  ---------------------------------
+  //  item identifier:  0000 009a (device_name)
+  //  value type:       08 (string)
+  //  string size:      00000009
+  //  value:            506f6c7973796e7468 ("Polysynth")
+  //  ---------------------------------
+  //  item identifer:   0000009b (device_creator)
+  //  value type:       08 (string)
+  //  string size:      00000006
+  //  value:            426974776967 ("Bitwig")
+  //  ---------------------------------
+  //  item identifier:  0000009c (device_type)
+  //  value type:       08 (string)
+  //  string size:      0000000b
+  //  value:            496e737472756d656e7473 ("Instrument")
+  //  ---------------------------------
+  //  item identifier:  0000009d (unknown)
+  //  value type:       01 (byte)
+  //  value:            02
+  //  ---------------------------------
+  //  item identifier:  0000009e (creator)
+  //  value type:       08 (string)
+  //  string size:      00000005
+  //  value:            436c616573 ("Claes")
+  //  ---------------------------------
+  //  item identifier:  0000009f (comment)
+  //  value type:       08 (string)
+  //  string size:      00000000
+  //  ---------------------------------
+  //  item identifier:  000000a1 (category)
+  //  value type:       08 (string)
+  //  string size:      00000004
+  //  value:            42617373 ("Bass")
+  //  ---------------------------------
+  //  item identifier:  000000a2 (tags)
+  //  value type:       08 (string)
+  //  string size:      0000000d
+  //  value:            6861726d6f6e6963206d6f6e6f ("harmonic mon")
+  //  ---------------------------------
+  //  item identifier   000000a3 (unknown) end of meta
+  //  value type:       05 (byte)
+  //  value:            01
+  //  ---------------------------------
+  //  item identifier:  0000137e (unknown)
+  //  value type:       05 (byte)
+  //  value:            01
+  //  ---------------------------------
+  //  .... don't need any more
+
+  // ----------------------------------------------
+  // Spire BA Agress Dub 02.bwpreset (1.0.10)
+
+  //  chunk identifier: 000001a5
+  //  ---------------------------------
+  //  item identifier:  000002b9 (unknown)
+  //  value identifier: 08 (string)
+  //  string size:      00000000
+  //  ---------------------------------
+  //  item identifier:  000012de (preset_name)
+  //  value type:       08 (string)
+  //  string size:      00000000
+  //  ---------------------------------
+  //  item identifier:  0000009a (device_name)
+  //  value type:       08 (string)
+  //  string size:      00000005
+  //  value:            5370697265 ("Spire")
+  //  ---------------------------------
+  //  item identifier:  0000009b (device_creator)
+  //  value type:       08 (string)
+  //  string size:      0000000c
+  //  value:            52657665616c20536f756e64 ("Reveal Sound")
+  //  ---------------------------------
+  //  item identifier:  0000009c (device_type)
+  //  value type:       08 (string)
+  //  string size:      00000005
+  //  value:            53796e7468 ("Synth")
+  //  ---------------------------------
+  //  item identifier:  0000009d (unknown)
+  //  value type:       01 (byte)
+  //  value:            02
+  //  ---------------------------------
+  //  item identifier:  0000009e (creator)
+  //  value type:       08 (string)
+  //  string size:      00000008
+  //  value:            466163746f727931 ("Factory1")
+  //  ---------------------------------
+  //  item identifier:  0000009f (comment)
+  //  value type:       08 (string)
+  //  string size:      00000000
+  //  ---------------------------------
+  //  item identifier:  000000a1 (category)
+  //  value type:       08 (string)
+  //  string size:      00000004
+  //  value:            42617373 ("Bass")
+  //  ---------------------------------
+  //  item identifier:  000000a2 (tags)
+  //  value type:       08 (string)
+  //  string size:      00000000
+  //  ---------------------------------
+  //  item identifier:  000000a3 (unknwon) end of meta
+  //  value type:       05 (byte)
+  //  value:            01
+  //  ---------------------------------
+  //  .... don't need any more
+
+  // constants
   $ = {
     magic: 'BtWg',
     metaId: 'meta',
@@ -24,7 +157,7 @@
     valueType: {
       byte_1: 0x01,
       int16: 0x02,
-      int32_1: 0x03,
+      int32_1: 0x03, // since 1.2 some preset file's revision_no use 32bit int
       byte_2: 0x05,
       double: 0x07,
       string: 0x08,
@@ -44,35 +177,54 @@
       preset_category: 0x00a1,
       tags: 0x00a2
     },
-    endOfMeta: 0x00a3
+    endOfMeta: 0x00a3,
+    // supported header format
+    headers: [
+      {
+        regexp: /^BtWg[0-9a-f]{12}([0-9a-f]{8})0{8}([0-9a-f]{8})\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0004meta/,
+        size: 52,
+        contentAddress: 16,
+        zipContentAddress: 32
+      },
+      {
+        regexp: /^BtWg[0-9a-f]{12}([0-9a-f]{8})0{8}([0-9a-f]{8})00\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0004meta/,
+        size: 54,
+        contentAddress: 16,
+        zipContentAddress: 32
+      },
+      {
+        regexp: /^BtWg[0-9a-f]{12}([0-9a-f]{8})0{28}([0-9a-f]{8})\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0004meta/,
+        size: 72,
+        contentAddress: 16,
+        zipContentAddress: 52
+      }
+    ]
   };
 
   module.exports = function(data) {
     return through.obj(function(file, enc, cb) {
       var error, obj, rewrite, rewrited;
       rewrited = false;
-      rewrite = (function(_this) {
-        return function(err, data) {
-          var err2;
-          if (rewrited) {
-            _this.emit('error', new gutil.PluginError(PLUGIN_NAME, 'duplicate callback'));
-            return;
-          }
-          rewrited = true;
-          if (err) {
-            _this.emit('error', new gutil.PluginError(PLUGIN_NAME, err));
-            return cb();
-          }
-          try {
-            rewriteMeta(file, data);
-            _this.push(file);
-          } catch (error1) {
-            err2 = error1;
-            _this.emit('error', new gutil.PluginError(PLUGIN_NAME, err2));
-          }
+      rewrite = (err, data) => {
+        var err2;
+        if (rewrited) {
+          this.emit('error', new PluginError(PLUGIN_NAME, 'duplicate callback'));
+          return;
+        }
+        rewrited = true;
+        if (err) {
+          this.emit('error', new PluginError(PLUGIN_NAME, err));
           return cb();
-        };
-      })(this);
+        }
+        try {
+          rewriteMeta(file, data);
+          this.push(file);
+        } catch (error1) {
+          err2 = error1;
+          this.emit('error', new PluginError(PLUGIN_NAME, err2));
+        }
+        return cb();
+      };
       if (!file) {
         rewrite('Files can not be empty');
         return;
@@ -103,37 +255,49 @@
     });
   };
 
+  
+  // rewrite metadata
+  // -------------------------------------
+  // -file src file
+  // -data function or object for rewrite
   rewriteMeta = function(file, data) {
-    var chunk1_offset, chunk2_offset, dirname, extname, magic, new_chunk1_offset, new_chunk2_offset, new_metadata, reader, writer;
+    var content_offset, dirname, extname, headerData, headerFormat, headerStr, new_metadata, reader, writer, zip_content_offset;
+    data = validateData(data);
+    // analyze header
+    headerStr = file.contents.toString('ascii', 0, 80);
+    headerData = void 0;
+    headerFormat = $.headers.find(function(fmt) {
+      return headerData = headerStr.match(fmt.regexp);
+    });
+    if (!headerFormat) {
+      throw new Error(`Invalid file: unknown header format. file:${file.path} header:${file.contents.toString('hex', 0, 80)}`);
+    }
+    
+    // content data offset
+    content_offset = parseInt(headerData[1], 16);
+    // zip archive offset
+    zip_content_offset = parseInt(headerData[2], 16);
     reader = new BufferReader(file.contents);
     writer = new BufferWriter;
-    data = validateData(data);
-    if ((magic = reader.readString(4)) !== $.magic) {
-      throw new Error("Invalid file: unknown file magic. file:" + file.path + " magic:" + magic);
-    }
-    reader.position(16);
-    chunk1_offset = reader.readHexInt();
-    reader.position(32);
-    chunk2_offset = reader.readHexInt();
-    reader.position(48);
-    if (reader.readString(4) !== $.metaId) {
-      throw new Error("Invalid file: metadata not contained. file:" + file.path);
-    }
+    reader.position(headerFormat.size);
     new_metadata = replaceMetadata(reader, writer, data);
-    reader.position(chunk1_offset);
+    //  chunk1
+    reader.position(content_offset);
     writer.push(reader.mark());
-    new_chunk1_offset = writer.tell();
-    writer.writeHexInt(new_chunk1_offset, 16);
+    // write new content offset address to header
+    writer.writeHexInt(writer.tell(), headerFormat.contentAddress);
     if (new_metadata.type === 'application/bitwig-preset') {
       replacePresetChunk1(reader, writer, data);
     }
-    if (chunk2_offset) {
-      reader.position(chunk2_offset);
+    // has zipped content
+    if (zip_content_offset) {
+      reader.position(zip_content_offset);
       writer.push(reader.mark());
-      new_chunk2_offset = writer.tell();
-      writer.writeHexInt(new_chunk2_offset, 32);
+      // write zipped content offset address to header
+      writer.writeHexInt(writer.tell(), headerFormat.zipContentAddress);
     }
     writer.push(reader.end());
+    // setup output file
     extname = path.extname(file.path);
     if (data.name) {
       new_metadata.name = data.name;
@@ -146,25 +310,33 @@
     return file.data = new_metadata;
   };
 
+  // parse metadata chunk
+
+  // return JSON object to explain metadata of original source file.
   parseMetadata = function(file) {
-    var extname, i, key, magic, reader, ret, size, value, valueType;
+    var extname, headerData, headerFormat, headerStr, i, key, reader, ret, size, value, valueType;
+    // analyze header
+    headerStr = file.contents.toString('ascii', 0, 80);
+    headerData = void 0;
+    headerFormat = $.headers.find(function(fmt) {
+      return headerData = headerStr.match(fmt.regexp);
+    });
+    if (!headerFormat) {
+      throw new Error(`Invalid file: unknown header format. file:${file.path} header:${file.contents.toString('hex', 0, 80)}`);
+    }
     reader = new BufferReader(file.contents);
-    if ((magic = reader.readString(4)) !== $.magic) {
-      throw new Error("Invalid file: unknown file magic. file:" + file.path + " magic:" + magic);
-    }
-    reader.position(48);
-    if (reader.readString(4) !== $.metaId) {
-      throw new Error("Invalid file: metadata not contained. file:" + file.path);
-    }
+    reader.position(headerFormat.size);
     extname = path.extname(file.path);
     ret = {
       file: file.path,
       name: path.basename(file.path, extname)
     };
+    // iterate metadata items
     while (reader.readInt32() === 1) {
+      // read key kength
       key = reader.readString();
       if (!key) {
-        throw new Error("Invalid file: metadata item name can not be empty. file:" + file.path);
+        throw new Error(`Invalid file: metadata item name can not be empty. file:${file.path}`);
       }
       valueType = reader.readByte();
       value = void 0;
@@ -192,24 +364,29 @@
           value = (function() {
             var j, ref, results;
             results = [];
-            for (i = j = 0, ref = size; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+            for (i = j = 0, ref = size; (0 <= ref ? j < ref : j > ref); i = 0 <= ref ? ++j : --j) {
               results.push(reader.readString());
             }
             return results;
           })();
           break;
         default:
-          throw new Error("Unsupported file format: unknown value type. file:" + file.path + " key:" + key + " valueType:" + valueType);
+          throw new Error(`Unsupported file format: unknown value type. file:${file.path} key:${key} valueType:${valueType}`);
       }
       ret[key] = value;
     }
     return ret;
   };
 
+  // reprace metadata chunk
+
+  // return JSON object to explain metadata
   replaceMetadata = function(reader, writer, data) {
     var i, key, new_metadata, size, value, valueType;
     new_metadata = {};
+    // iterate metadata items
     while (reader.readInt32() === 1) {
+      // read key kength
       key = reader.readString();
       if (!key) {
         throw new Error("Invalid file: metadata item name can not be empty.");
@@ -252,24 +429,26 @@
           value = (function() {
             var j, ref, results;
             results = [];
-            for (i = j = 0, ref = size; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+            for (i = j = 0, ref = size; (0 <= ref ? j < ref : j > ref); i = 0 <= ref ? ++j : --j) {
               results.push(reader.readString());
             }
             return results;
           })();
           break;
         default:
-          throw new Error("Unsupported file format: unknown value type. key: " + key + " valueType:" + valueType);
+          throw new Error(`Unsupported file format: unknown value type. key: ${key} valueType:${valueType}`);
       }
       new_metadata[key] = value;
     }
     return new_metadata;
   };
 
+  // reprace chunk1 (.bwpreset only)
   replacePresetChunk1 = function(reader, writer, data) {
     var chunkId, itemId, key, oldValue, results, value, valueType;
     chunkId = reader.readInt32();
     results = [];
+    // iterate chunk1 items
     while ((itemId = reader.readInt32()) !== $.endOfMeta) {
       value = void 0;
       valueType = reader.readByte();
@@ -278,12 +457,13 @@
       });
       if (key && key in data) {
         if (valueType !== $.valueType.string) {
-          throw new Error("Unsupported file format: unknow value type. valueType:" + valueType);
+          throw new Error(`Unsupported file format: unknow value type. valueType:${valueType}`);
         }
         writer.push(reader.mark());
         oldValue = reader.readString();
         value = key === 'tags' ? data.tags.join(' ') : data[key];
         if (key === 'name' && oldValue === '') {
+          // old preset file dosen't have name
           value = '';
         }
         writer.pushString(value);
@@ -303,104 +483,111 @@
             results.push(value = reader.readInt32());
             break;
           default:
-            throw new Error("Unsupported File Format: unknown value type. itemId:" + itemId + " valueType:" + valueType);
+            throw new Error(`Unsupported File Format: unknown value type. itemId:${itemId} valueType:${valueType}`);
         }
       }
     }
     return results;
   };
 
+  
+  //----------------------------------------
+  // validate data object for rewrite
+  //----------------------------------------
   validateData = function(data) {
     var j, keys, len1, ref, tag;
     data = data || {};
     keys = _.keys(data);
     if ((indexOf.call(keys, 'name') >= 0) && !_.isString(data.name)) {
-      throw new Error("option name must be string. name: " + data.name);
+      throw new Error(`option name must be string. name: ${data.name}`);
     }
     if ((indexOf.call(keys, 'creator') >= 0) && !_.isString(data.creator)) {
-      throw new Error("option creator must be string. creator: " + data.creator);
+      throw new Error(`option creator must be string. creator: ${data.creator}`);
     }
     if ((indexOf.call(keys, 'comment') >= 0) && !_.isString(data.comment)) {
-      throw new Error("option comment must be string. comment: " + data.comment);
+      throw new Error(`option comment must be string. comment: ${data.comment}`);
     }
     if ((indexOf.call(keys, 'preset_category') >= 0) && !_.isString(data.preset_category)) {
-      throw new Error("option preset_category must be string. preset_category: " + data.preset_category);
+      throw new Error(`option preset_category must be string. preset_category: ${data.preset_category}`);
     }
     if (indexOf.call(keys, 'tags') >= 0) {
       if (!_.isArray(data.tags)) {
-        throw new Error("option tags must be array of strings. tags: " + data.tags);
+        throw new Error(`option tags must be array of strings. tags: ${data.tags}`);
       }
       ref = data.tags;
       for (j = 0, len1 = ref.length; j < len1; j++) {
         tag = ref[j];
         if (!_.isString(tag)) {
-          throw new Error("option tags must be array of strings. tags: " + data.tags);
+          throw new Error(`option tags must be array of strings. tags: ${data.tags}`);
         }
         if ((tag.indexOf(' ')) >= 0) {
-          throw new Error("tag can't contain spaces. tags: " + tag);
+          throw new Error(`tag can't contain spaces. tags: ${tag}`);
         }
       }
     }
     return data;
   };
 
-  BufferReader = (function() {
-    function BufferReader(buf) {
+  //----------------------------------------
+  // simple reader class
+  //----------------------------------------
+  BufferReader = class BufferReader {
+    constructor(buf) {
       this.buf = buf;
       this.marker = 0;
       this.pos = 0;
     }
 
-    BufferReader.prototype.skip = function(n) {
+    skip(n) {
       this.pos += n;
       return this;
-    };
+    }
 
-    BufferReader.prototype.position = function(pos) {
+    position(pos) {
       this.pos = pos;
       return this;
-    };
+    }
 
-    BufferReader.prototype.tell = function() {
+    tell() {
       return this.pos;
-    };
+    }
 
-    BufferReader.prototype.readInt32 = function() {
+    readInt32() {
       var ret;
       ret = this.buf.readUInt32BE(this.pos);
       this.pos += 4;
       return ret;
-    };
+    }
 
-    BufferReader.prototype.readInt16 = function() {
+    readInt16() {
       var ret;
       ret = this.buf.readUInt16BE(this.pos);
       this.pos += 2;
       return ret;
-    };
+    }
 
-    BufferReader.prototype.readDouble = function() {
+    readDouble() {
       var ret;
       ret = this.buf.readDoubleBE(this.pos);
       this.pos += 8;
       return ret;
-    };
+    }
 
-    BufferReader.prototype.readByte = function() {
+    readByte() {
       var ret;
       ret = this.buf.readUInt8(this.pos);
       this.pos += 1;
       return ret;
-    };
+    }
 
-    BufferReader.prototype.readHexInt = function() {
+    readHexInt() {
       var s;
       s = this.buf.toString('ascii', this.pos, this.pos + 8);
       this.pos += 8;
       return parseInt(s, 16);
-    };
+    }
 
-    BufferReader.prototype.readBytes = function(len) {
+    readBytes(len) {
       var ret;
       if (!len) {
         len = this.readInt32();
@@ -411,9 +598,9 @@
         this.pos += len;
       }
       return ret;
-    };
+    }
 
-    BufferReader.prototype.readString = function(len) {
+    readString(len) {
       var b, enc, ret;
       enc = 'utf-8';
       if (!len) {
@@ -433,43 +620,45 @@
         this.pos += len;
       }
       return ret;
-    };
+    }
 
-    BufferReader.prototype.mark = function() {
+    mark() {
       var ret;
       ret = this.buf.slice(this.marker, this.pos);
       this.marker = this.pos;
       return ret;
-    };
-
-    BufferReader.prototype.end = function() {
-      return this.buf.slice(this.marker);
-    };
-
-    return BufferReader;
-
-  })();
-
-  BufferWriter = (function() {
-    function BufferWriter() {
-      this.buf = new Buffer(0);
     }
 
-    BufferWriter.prototype.buffer = function() {
+    end() {
+      return this.buf.slice(this.marker);
+    }
+
+  };
+
+  
+  //----------------------------------------
+  // simple writer class
+  //----------------------------------------
+  BufferWriter = class BufferWriter {
+    constructor() {
+      this.buf = Buffer.alloc(0);
+    }
+
+    buffer() {
       return this.buf;
-    };
+    }
 
-    BufferWriter.prototype.tell = function() {
+    tell() {
       return this.buf.length;
-    };
+    }
 
-    BufferWriter.prototype.writeHexInt = function(num, offset) {
+    writeHexInt(num, offset) {
       var s;
-      s = ("00000000" + (num.toString(16))).slice(-8);
+      s = `00000000${num.toString(16)}`.slice(-8);
       return this.buf.write(s, offset, 8, 'ascii');
-    };
+    }
 
-    BufferWriter.prototype.push = function(buf, start, end) {
+    push(buf, start, end) {
       var b;
       b = buf;
       if (_.isNumber(start)) {
@@ -481,27 +670,29 @@
       }
       this.buf = Buffer.concat([this.buf, b]);
       return this;
-    };
+    }
 
-    BufferWriter.prototype.pushInt = function(value) {
+    pushInt(value) {
       var b;
-      b = new Buffer(4);
+      b = Buffer.alloc(4);
       b.writeUInt32BE(value, 0);
       this.push(b);
       return this;
-    };
+    }
 
-    BufferWriter.prototype.pushString = function(value) {
+    pushString(value) {
       var b;
       if (value) {
         if (/^[\u0000-\u007f]*$/.test(value)) {
-          b = new Buffer(value, 'ascii');
+          // ascii
+          b = Buffer.from(value, 'ascii');
           this.pushInt(b.length);
           if (b.length) {
             this.push(b);
           }
         } else {
-          b = new Buffer(value, 'ucs2');
+          // value has non-ascii characters
+          b = Buffer.from(value, 'ucs2');
           if (IS_UCS2_LE) {
             b = swapBytes(b);
           }
@@ -514,16 +705,14 @@
         this.pushInt(0);
       }
       return this;
-    };
+    }
 
-    return BufferWriter;
-
-  })();
+  };
 
   swapBytes = function(b) {
     var a, i, j, l, p, ref;
     l = b.length >> 1;
-    for (i = j = 0, ref = l; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+    for (i = j = 0, ref = l; (0 <= ref ? j < ref : j > ref); i = 0 <= ref ? ++j : --j) {
       p = i << 1;
       a = b[p];
       b[p] = b[p + 1];

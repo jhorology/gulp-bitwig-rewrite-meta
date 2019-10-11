@@ -1,11 +1,11 @@
 path          = require 'path'
 through       = require 'through2'
-gutil         = require 'gulp-util'
 _             = require 'underscore'
+PluginError   = require 'plugin-error'
 
 PLUGIN_NAME = 'bitwig-rewrite-meta'
 # ucs2 encoding endian
-IS_UCS2_LE  = (new Buffer 'a', 'ucs2')[0]
+IS_UCS2_LE  = (Buffer.from 'a', 'ucs2')[0]
 
 # bwpreset chunk1
 # ----------------------------------------------
@@ -166,23 +166,44 @@ $ =
     preset_category: 0x00a1
     tags: 0x00a2
   endOfMeta: 0x00a3
+  # supported header format
+  headers: [
+    {
+       regexp: /^BtWg[0-9a-f]{12}([0-9a-f]{8})0{8}([0-9a-f]{8})\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0004meta/
+       size: 52
+       contentAddress: 16
+       zipContentAddress: 32
+    }
+    {
+      regexp: /^BtWg[0-9a-f]{12}([0-9a-f]{8})0{8}([0-9a-f]{8})00\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0004meta/
+      size: 54
+      contentAddress: 16
+      zipContentAddress: 32
+    }
+    {
+      regexp: /^BtWg[0-9a-f]{12}([0-9a-f]{8})0{28}([0-9a-f]{8})\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0004meta/
+      size: 72
+      contentAddress: 16
+      zipContentAddress: 52
+    }
+  ]
 
 module.exports = (data) ->
   through.obj (file, enc, cb) ->
     rewrited = off
     rewrite = (err, data) =>
       if rewrited
-        @emit 'error', new gutil.PluginError PLUGIN_NAME, 'duplicate callback'
+        @emit 'error', new PluginError PLUGIN_NAME, 'duplicate callback'
         return
       rewrited = on
       if err
-        @emit 'error', new gutil.PluginError PLUGIN_NAME, err
+        @emit 'error', new PluginError PLUGIN_NAME, err
         return cb()
       try
         rewriteMeta file, data
         @push file
       catch err2
-        @emit 'error', new gutil.PluginError PLUGIN_NAME, err2
+        @emit 'error', new PluginError PLUGIN_NAME, err2
       cb()
       
     unless file
@@ -213,48 +234,42 @@ module.exports = (data) ->
 # -file src file
 # -data function or object for rewrite
 rewriteMeta = (file, data) ->
+  data = validateData data
+  # analyze header
+  headerStr = file.contents.toString 'ascii', 0, 80
+  headerData = undefined
+  headerFormat = $.headers.find (fmt) ->
+    headerData = headerStr.match fmt.regexp
+  unless headerFormat
+    throw new Error "Invalid file: unknown header format. file:#{file.path} header:#{file.contents.toString 'hex', 0, 80}"
+      
+  # content data offset
+  content_offset = parseInt headerData[1], 16
+  # zip archive offset
+  zip_content_offset = parseInt headerData[2], 16
+  
   reader = new BufferReader file.contents
   writer = new BufferWriter
-  data = validateData data
-
-  # header chunk 48byte
-  if (magic = reader.readString 4) isnt $.magic
-    throw new Error "Invalid file: unknown file magic. file:#{file.path} magic:#{magic}"
-
-  # chunk1 offset = metadata size
-  reader.position 16
-  chunk1_offset = reader.readHexInt()
-
-  # chunk2 offset
-  reader.position 32
-  chunk2_offset = reader.readHexInt()
-    
-  # metadata chunk (chuk1 offset - 48) byte
-  reader.position 48
-  if reader.readString(4) isnt $.metaId
-    throw new Error "Invalid file: metadata not contained. file:#{file.path}"
-    
+  reader.position headerFormat.size
+  
   new_metadata = replaceMetadata reader, writer, data
 
   #  chunk1
-  reader.position chunk1_offset
+  reader.position content_offset
   writer.push reader.mark()
 
-  # set chunk1 offset = metadata size
-  new_chunk1_offset = writer.tell()
-  writer.writeHexInt new_chunk1_offset, 16
+  # write new content offset address to header
+  writer.writeHexInt writer.tell(), headerFormat.contentAddress
   
-  # bitwig-preset contains silly redundancy metadata.
   if new_metadata.type is 'application/bitwig-preset'
     replacePresetChunk1 reader, writer, data
 
-  # has chunk2 ?
-  if chunk2_offset
-    reader.position chunk2_offset
+  # has zipped content
+  if zip_content_offset
+    reader.position zip_content_offset
     writer.push reader.mark()
-    # set chunk2 offset = metadata size + chunk1 size
-    new_chunk2_offset = writer.tell()
-    writer.writeHexInt new_chunk2_offset, 32
+    # write zipped content offset address to header
+    writer.writeHexInt writer.tell(), headerFormat.zipContentAddress
 
   writer.push reader.end()
 
@@ -273,13 +288,18 @@ rewriteMeta = (file, data) ->
 #
 # return JSON object to explain metadata of original source file.
 parseMetadata = (file) ->
-  reader = new BufferReader file.contents
-  if (magic = reader.readString(4)) isnt $.magic
-    throw new Error "Invalid file: unknown file magic. file:#{file.path} magic:#{magic}"
+  # analyze header
+  headerStr = file.contents.toString 'ascii', 0, 80
+  headerData = undefined
+  headerFormat = $.headers.find (fmt) ->
+    headerData = headerStr.match fmt.regexp
+  unless headerFormat
+    throw new Error "Invalid file: unknown header format. file:#{file.path} header:#{file.contents.toString 'hex', 0, 80}"
 
-  reader.position 48
-  if reader.readString(4) isnt $.metaId
-    throw new Error "Invalid file: metadata not contained. file:#{file.path}"
+  reader = new BufferReader file.contents
+
+  reader.position headerFormat.size
+  
   extname = path.extname file.path
   ret =
     file: file.path
@@ -490,7 +510,7 @@ class BufferReader
 #----------------------------------------
 class BufferWriter
   constructor: ->
-    @buf = new Buffer 0
+    @buf = Buffer.alloc 0
 
   buffer: ->
     @buf
@@ -513,7 +533,7 @@ class BufferWriter
     @
   
   pushInt: (value) ->
-    b = new Buffer 4
+    b = Buffer.alloc 4
     b.writeUInt32BE value, 0
     @push b
     @
@@ -522,12 +542,12 @@ class BufferWriter
     if value
       if /^[\u0000-\u007f]*$/.test value
         # ascii
-        b = new Buffer value, 'ascii'
+        b = Buffer.from value, 'ascii'
         @pushInt b.length
         @push b if b.length
       else
         # value has non-ascii characters
-        b = new Buffer value, 'ucs2'
+        b = Buffer.from value, 'ucs2'
         if IS_UCS2_LE
           b = swapBytes b
         @pushInt 0x80000000 + (b.length >> 1)
